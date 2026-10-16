@@ -1,0 +1,112 @@
+services:
+  backend:
+    build:
+      context: .
+    ports:
+      - "8001:8000"
+    env_file:
+      - .env
+    environment:
+      # Override the .env defaults (which target "localhost", correct for
+      # running Django outside Docker per README.md) with the in-network
+      # service names — containers can't reach each other via localhost.
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+      MINIO_ENDPOINT_URL: http://minio:9000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+    volumes:
+      - .:/app
+    restart: unless-stopped
+
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: jetson_stream
+      POSTGRES_USER: jetson_stream
+      POSTGRES_PASSWORD: jetson_stream
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jetson_stream"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  minio:
+    # minio/minio is no longer published on Docker Hub/Quay; pgsty/minio is a
+    # drop-in community build of the same server (same entrypoint/env).
+    image: pgsty/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9010:9000"
+      - "9011:9001"
+    volumes:
+      - minio_data:/data
+
+  # NUC-side test harness (real webcam -> WebRTC offer -> backend), see
+  # jetson_mock/README.md.
+  #
+  # network_mode: host is required for WebRTC to actually reach a real
+  # remote peer (e.g. the Flutter app on another LAN device): on the
+  # default bridge network this container only sees its own internal
+  # Docker IP, so the ICE candidates it gathers/resolves are unreachable
+  # from outside the container and ICE gets stuck at "checking" (mDNS
+  # candidate resolution also needs real LAN multicast, which the bridge
+  # network doesn't pass through). That takes it off the `g-lab_default`
+  # compose network, so it can no longer resolve `backend` by service
+  # name — reach it via the host-published port instead (127.0.0.1:8001,
+  # from backend's "8001:8000" mapping above). Linux-only; Docker Desktop
+  # (Mac/Windows) doesn't support network_mode: host.
+  jetson-mock:
+    build:
+      context: ./jetson_mock
+    network_mode: host
+    environment:
+      # backend's port is only published on the host as 8001 (see
+      # "8001:8000" above) — with network_mode: host there's no bridge
+      # network or extra_hosts mapping to resolve "backend" or
+      # host.docker.internal through, so reach it via the host loopback
+      # and the published port directly.
+      JETSON_MOCK_HOST: ${JETSON_MOCK_HOST:-127.0.0.1:8001}
+      # Must match Django's settings.JETSON_DEVICE_ID / JETSON_AUTH_TOKEN
+      # (see ../.env.example) — these are NOT looked up anywhere, they're
+      # just two strings that both sides need to agree on.
+      JETSON_MOCK_DEVICE_ID: ${JETSON_MOCK_DEVICE_ID:-JETSON001}
+      JETSON_MOCK_TOKEN: ${JETSON_MOCK_TOKEN:-changeme-dev-token}
+      JETSON_MOCK_SSL: ${JETSON_MOCK_SSL:-false}
+      # "auto" probes every /dev/video* passed through below and uses the
+      # first one that actually delivers a frame. Pin to one path
+      # (e.g. /dev/video0) if the box has more than one camera and auto
+      # picks the wrong one.
+      JETSON_MOCK_VIDEO_DEVICE: ${JETSON_MOCK_VIDEO_DEVICE:-auto}
+    # Passes the host's webcam node(s) into the container — required, a
+    # container sees no devices by default. List every /dev/video* the
+    # host actually has if you want JETSON_MOCK_VIDEO_DEVICE=auto to have
+    # more than one candidate to probe; otherwise just the one you use.
+    devices:
+      - "/dev/video0:/dev/video0"
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+
+volumes:
+  postgres_data:
+  minio_data:

@@ -1,0 +1,5 @@
+# jetson_mock's own image — deliberately not requirements.txt/pyproject.toml
+# at the repo root (that's the Django backend / local dev tooling). Kept
+# minimal: this container only ever runs nuc_capture_send.py.
+aiortc>=1.15.0
+websockets>=17.0.1

@@ -1,0 +1,24 @@
+[project]
+name = "g-lab"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Abhinav", email = "abhinav.s@genrobotics.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "aiortc>=1.15.0",
+    "django>=6.1",
+    "djangorestframework>=3.18.0",
+    "numpy>=2.5.2",
+    "requests>=2.34.2",
+    "websockets>=17.0.1",
+]
+
+[project.scripts]
+g-lab = "g_lab:main"
+
+[build-system]
+requires = ["uv_build>=0.12.0,<0.13.0"]
+build-backend = "uv_build"

@@ -1,0 +1,54 @@
+# Standalone compose file for jetson_mock — kept separate from
+# docker-compose.yml (postgres/redis/minio) since this is a client of the
+# Django backend, not part of the backend's own infra, and you may want to
+# run it on a different machine (a NUC, or the LAN) than the backend stack.
+#
+# Usage:
+#   docker compose -f docker-compose.jetson-mock.yml up --build
+#
+# Config is via env vars below (or a .env file next to this one) — see
+# jetson_mock/nuc_capture_send.py's argparse section for the full list
+# (every flag there has a JETSON_MOCK_* env fallback).
+services:
+  jetson-mock:
+    build:
+      context: ./jetson_mock
+    # Required for WebRTC to actually work here: on the default bridge
+    # network the container only sees its own internal Docker IP, so the
+    # ICE host candidate it advertises (and often the srflx one too, since
+    # nothing is published back into the container) is unreachable from a
+    # Flutter device elsewhere on the LAN — ICE gets stuck at "checking"
+    # or fails outright. Host networking makes the container gather the
+    # machine's real LAN interface address instead. Linux-only; Docker
+    # Desktop (Mac/Windows) doesn't support network_mode: host, so this
+    # compose file only works for jetson-mock run on a Linux box.
+    network_mode: host
+    environment:
+      # Django host:port this mock connects to. host.docker.internal
+      # (mapped below via extra_hosts) reaches a Django dev server running
+      # on the same machine, outside Docker — point this at the real LAN
+      # IP/hostname instead if Django is elsewhere (e.g. this compose file
+      # run on the NUC itself, Django on another machine).
+      JETSON_MOCK_HOST: ${JETSON_MOCK_HOST:-host.docker.internal:8000}
+      # Must match Django's settings.JETSON_DEVICE_ID / JETSON_AUTH_TOKEN
+      # (see ../.env.example) — these are NOT looked up anywhere, they're
+      # just two strings that both sides need to agree on.
+      JETSON_MOCK_DEVICE_ID: ${JETSON_MOCK_DEVICE_ID:-JETSON001}
+      JETSON_MOCK_TOKEN: ${JETSON_MOCK_TOKEN:-changeme-dev-token}
+      JETSON_MOCK_SSL: ${JETSON_MOCK_SSL:-false}
+      # "auto" probes every /dev/video* passed through below and uses the
+      # first one that actually delivers a frame. Pin to one path
+      # (e.g. /dev/video0) if the box has more than one camera and auto
+      # picks the wrong one.
+      JETSON_MOCK_VIDEO_DEVICE: ${JETSON_MOCK_VIDEO_DEVICE:-auto}
+    extra_hosts:
+      # Lets host.docker.internal resolve on Linux too (Docker Desktop
+      # already provides this on Mac/Windows).
+      - "host.docker.internal:host-gateway"
+    # Passes the host's webcam node(s) into the container — required, a
+    # container sees no devices by default. List every /dev/video* the
+    # host actually has if you want JETSON_MOCK_VIDEO_DEVICE=auto to have
+    # more than one candidate to probe; otherwise just the one you use.
+    devices:
+      - "/dev/video0:/dev/video0"
+    restart: unless-stopped

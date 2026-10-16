@@ -1,0 +1,566 @@
+{
+  "info": {
+    "name": "g-lab API (login \u2192 patients \u2192 session history)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8001"
+    },
+    {
+      "key": "username",
+      "value": "lekshmi"
+    },
+    {
+      "key": "password",
+      "value": "1234"
+    },
+    {
+      "key": "access_token",
+      "value": ""
+    },
+    {
+      "key": "refresh_token",
+      "value": ""
+    },
+    {
+      "key": "patient_id",
+      "value": "DEMO001"
+    },
+    {
+      "key": "session_id",
+      "value": ""
+    },
+    {
+      "key": "session_number",
+      "value": "1"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.access) pm.collectionVariables.set('access_token', body.access);",
+                  "if (body.refresh) pm.collectionVariables.set('refresh_token', body.refresh);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "Refresh token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.access) pm.collectionVariables.set('access_token', body.access);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/refresh/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "refresh",
+                ""
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Patients",
+      "item": [
+        {
+          "name": "List patients",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/patients/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patients",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get patient",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/patients/{{patient_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patients",
+                "{{patient_id}}",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create patient",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patient_id\": \"P1001\",\n  \"name\": \"Test Patient\",\n  \"gender\": \"FEMALE\",\n  \"date_of_birth\": \"1985-04-12\",\n  \"diagnosis\": \"Knee rehab\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/patients/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patients",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update patient (partial)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"+91 90000 00000\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/patients/P1001/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patients",
+                "P1001",
+                ""
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Session history",
+      "item": [
+        {
+          "name": "Patient session history",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (Array.isArray(body) && body.length) pm.collectionVariables.set('session_id', body[0].session_id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/patients/{{patient_id}}/sessions/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patients",
+                "{{patient_id}}",
+                "sessions",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "Patient session history (completed only)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/patients/{{patient_id}}/sessions/?status=COMPLETED",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patients",
+                "{{patient_id}}",
+                "sessions",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "COMPLETED"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Patient session detail",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/patients/{{patient_id}}/sessions/{{session_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patients",
+                "{{patient_id}}",
+                "sessions",
+                "{{session_id}}",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "Patient session by number (Session 1, 2, 3...)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/patients/{{patient_id}}/sessions/{{session_number}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patients",
+                "{{patient_id}}",
+                "sessions",
+                "{{session_number}}",
+                ""
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Session report",
+      "item": [
+        {
+          "name": "Get report",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/sessions/{{session_id}}/report/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "sessions",
+                "{{session_id}}",
+                "report",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "Add remark",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"remarks\": \"Improved cadence\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/sessions/{{session_id}}/report/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "sessions",
+                "{{session_id}}",
+                "report",
+                ""
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sessions & device",
+      "item": [
+        {
+          "name": "List sessions",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/sessions/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "sessions",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get session",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/sessions/{{session_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "sessions",
+                "{{session_id}}",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "Session alerts",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/sessions/{{session_id}}/alerts/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "sessions",
+                "{{session_id}}",
+                "alerts",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "Session analysis",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/sessions/{{session_id}}/analysis/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "sessions",
+                "{{session_id}}",
+                "analysis",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "Device status",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/device/status/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "device",
+                "status",
+                ""
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "Summary",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/dashboard/summary/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "dashboard",
+                "summary",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "Sessions",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/dashboard/sessions/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "dashboard",
+                "sessions",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "Alerts",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/dashboard/alerts/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "dashboard",
+                "alerts",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "Analysis",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/dashboard/analysis/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "dashboard",
+                "analysis",
+                ""
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

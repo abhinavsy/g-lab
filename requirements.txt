@@ -1,0 +1,22 @@
+Django>=5.0,<5.2
+djangorestframework>=3.15
+djangorestframework-simplejwt>=5.3
+channels>=4.1
+# channels_redis's blocking receive-loop (BZPOPMIN-based) is incompatible
+# with redis-py's asyncio.shield()-wrapped blocking-read handling, added in
+# redis-py 4.5.4 — a graceful "no message, poll again" timeout gets turned
+# into a fatal TimeoutError instead, causing spurious
+# "TimeoutError: Timeout reading from redis:6379" on idle WebSocket
+# connections, forcibly dropping ws/app/ and ws/jetson/ every ~5s (see
+# django/channels_redis#366, #408). channels_redis>=4.2 requires
+# redis-py>=4.6, which is always past the break, so channels_redis itself
+# has to be pinned back too — not just redis-py. Bump both together once
+# channels_redis officially works around the regression.
+channels-redis<4.2
+redis<4.5.4
+daphne>=4.1
+psycopg2-binary
+django-environ>=0.11
+django-storages>=1.14
+boto3>=1.34
+django-cors-headers>=4.4

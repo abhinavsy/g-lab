@@ -1,0 +1,315 @@
+{
+  "info": {
+    "name": "G-Lab API",
+    "_postman_id": "b6f2e3a0-6c1e-4a3e-9d2c-g-lab-api-0001",
+    "description": "Jetson -> Django -> Flutter WebRTC backend. See README_WebRTC.md for the architecture.\n\nNo Device/Camera model — this project targets exactly one Jetson (id/secret in settings/.env: JETSON_DEVICE_ID, JETSON_AUTH_TOKEN). There's no camera_id anywhere either; a session always covers every camera the Jetson has.\n\nRequests are ordered to be run top-to-bottom: login first (sets {{access_token}}), then the session lifecycle (which sets {{session_id}} for you), then the nested/recording/telemetry endpoints, then the dashboard overview.\n\nSet {{base_url}} in the collection/environment variables (default http://localhost:8000).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8000" },
+    { "key": "access_token", "value": "" },
+    { "key": "refresh_token", "value": "" },
+    { "key": "patient_id", "value": "PAT001" },
+    { "key": "session_id", "value": "" },
+    { "key": "jetson_auth_token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. Auth",
+      "item": [
+        {
+          "name": "Login (obtain JWT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.access) pm.collectionVariables.set('access_token', body.access);",
+                  "if (body.refresh) pm.collectionVariables.set('refresh_token', body.refresh);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"i89U1KglMIejYbTh6nhz\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/auth/login/", "host": ["{{base_url}}"], "path": ["api", "auth", "login", ""] }
+          }
+        },
+        {
+          "name": "Refresh token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.access) pm.collectionVariables.set('access_token', body.access);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"refresh\": \"{{refresh_token}}\"\n}" },
+            "url": { "raw": "{{base_url}}/api/auth/refresh/", "host": ["{{base_url}}"], "path": ["api", "auth", "refresh", ""] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Patients",
+      "item": [
+        {
+          "name": "Create patient",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patient_id\": \"{{patient_id}}\",\n  \"name\": \"John Doe\",\n  \"notes\": \"\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/patients/", "host": ["{{base_url}}"], "path": ["api", "patients", ""] }
+          }
+        },
+        {
+          "name": "List patients",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/patients/", "host": ["{{base_url}}"], "path": ["api", "patients", ""] }
+          }
+        },
+        {
+          "name": "Get patient",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/patients/{{patient_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "patients", "{{patient_id}}", ""]
+            }
+          }
+        },
+        {
+          "name": "Update patient",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"notes\": \"Updated notes\"\n}" },
+            "url": {
+              "raw": "{{base_url}}/api/patients/{{patient_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "patients", "{{patient_id}}", ""]
+            }
+          }
+        },
+        {
+          "name": "Delete patient",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/patients/{{patient_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "patients", "{{patient_id}}", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Device status",
+      "item": [
+        {
+          "name": "Get device status",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/device/status/", "host": ["{{base_url}}"], "path": ["api", "device", "status", ""] },
+            "description": "No Device model/CRUD — this project targets exactly one Jetson. Returns {device_id, online, last_seen_at} read from the cache-backed flag JetsonConsumer.connect/disconnect sets."
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Session lifecycle",
+      "item": [
+        {
+          "name": "Start session",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.session_id) pm.collectionVariables.set('session_id', body.session_id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patient_id\": \"{{patient_id}}\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/sessions/start/", "host": ["{{base_url}}"], "path": ["api", "sessions", "start", ""] },
+            "description": "Starts one session covering ALL cameras on the Jetson — no device_id needed, there's only one device (settings.JETSON_DEVICE_ID). Fails 400 if the Jetson isn't online (check 3. Device status first) or another session is already active."
+          }
+        },
+        {
+          "name": "List sessions",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/sessions/", "host": ["{{base_url}}"], "path": ["api", "sessions", ""] }
+          }
+        },
+        {
+          "name": "Get session",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/sessions/{{session_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "sessions", "{{session_id}}", ""]
+            }
+          }
+        },
+        {
+          "name": "Send device command",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"command\": \"SET_SPEED\",\n  \"params\": {\n    \"value\": 5\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/sessions/{{session_id}}/command/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "sessions", "{{session_id}}", "command", ""]
+            }
+          }
+        },
+        {
+          "name": "Stop session",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/sessions/{{session_id}}/stop/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "sessions", "{{session_id}}", "stop", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Session sub-resources",
+      "item": [
+        {
+          "name": "List alerts",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/sessions/{{session_id}}/alerts/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "sessions", "{{session_id}}", "alerts", ""]
+            }
+          }
+        },
+        {
+          "name": "List analysis events",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/sessions/{{session_id}}/analysis/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "sessions", "{{session_id}}", "analysis", ""]
+            }
+          }
+        },
+        {
+          "name": "List recordings",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/sessions/{{session_id}}/recordings/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "sessions", "{{session_id}}", "recordings", ""]
+            }
+          }
+        },
+        {
+          "name": "Upload recording (Jetson device token)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Device {{jetson_auth_token}}" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": "" },
+                { "key": "clip_index", "value": "0", "type": "text" },
+                { "key": "duration_seconds", "value": "120.5", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/sessions/{{session_id}}/recordings/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "sessions", "{{session_id}}", "recordings", ""]
+            },
+            "description": "**Caller: Jetson only** — sent once per finished clip, right after \"Finalize Recording\" in the session-stop sequence (README_WebRTC.md #17, #19). Flutter never calls this; it only ever has the live WebRTC stream, not the raw file.\n\n**Format:** `multipart/form-data`. `file` = the finished `.mp4` (H.264) produced by the Jetson's GStreamer pipeline (`recording.mp4` / `clip_001.mp4` / ...); `clip_index` (int, default 0) and `duration_seconds` (float, optional) as plain form fields.\n\n**Auth:** `Authorization: Device <JETSON_AUTH_TOKEN>` — NOT the JWT bearer token used by every other request in this collection. No Device model/row — this is the single shared secret from settings/.env. Set {{jetson_auth_token}} to that value, and pick a file for the `file` form field before sending.\n\nDjango writes the file through to MinIO (`Recording.file`, S3Storage backend) and returns 201 with the created Recording row."
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Dashboard (overview)",
+      "item": [
+        {
+          "name": "Summary",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/dashboard/summary/", "host": ["{{base_url}}"], "path": ["api", "dashboard", "summary", ""] }
+          }
+        },
+        {
+          "name": "All sessions",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/dashboard/sessions/", "host": ["{{base_url}}"], "path": ["api", "dashboard", "sessions", ""] }
+          }
+        },
+        {
+          "name": "All alerts",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/dashboard/alerts/", "host": ["{{base_url}}"], "path": ["api", "dashboard", "alerts", ""] }
+          }
+        },
+        {
+          "name": "All analysis events",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/dashboard/analysis/", "host": ["{{base_url}}"], "path": ["api", "dashboard", "analysis", ""] }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Local secrets (JETSON_AUTH_TOKEN, DJANGO_SECRET_KEY, DB/MinIO creds, ...)
+.env

@@ -1,0 +1,9 @@
+.venv
+__pycache__
+*.pyc
+.git
+.env
+.vscode
+flutter_app_mock
+jetson_mock
+uv.lock
