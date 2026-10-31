@@ -32,6 +32,7 @@ itself sends it (over a group-send), not a client.
 | 2 | `POST /api/auth/refresh/` | REST | Flutter (or any client) | Renew an expired access token |
 | 3 | `GET /api/patients/` | REST | Flutter | List patients to start a session for |
 | 4 | `POST /api/patients/` | REST | Flutter | Register a new patient |
+| 4a | `GET /api/doctors/` | REST | Flutter | List doctors |
 | 5 | `GET /api/device/status/` | REST | Flutter | See whether the Jetson is online before starting a session |
 | 6 | `ws/app/` connect | WebSocket | Flutter | Open the live control channel |
 | 7 | `{"type":"start_session"}` | WS (app) | Flutter | Start a session (or `POST /api/sessions/start/`) |
@@ -102,7 +103,9 @@ Lives in the `patient` app (`patient/views.py`, `PatientViewSet`).
 [
   {
     "id": 1, "patient_id": "PAT001", "name": "Jane Doe",
-    "date_of_birth": "1990-05-14", "age": 36, "gender": "FEMALE",
+    "doctor_id": "DOC001", "doctor_name": "Anjali Krishnan",
+    "date_of_birth": "1990-05-14", "age": 36,
+    "height_cm": "168.50", "weight_kg": "62.25", "gender": "FEMALE",
     "phone": "", "email": "", "address": "", "diagnosis": "",
     "emergency_contact_name": "", "emergency_contact_phone": "",
     "notes": "", "is_active": true,
@@ -114,6 +117,24 @@ Lives in the `patient` app (`patient/views.py`, `PatientViewSet`).
 `age`, `session_count`, `last_session_at`, `created_at`, `updated_at` are
 read-only. `gender` is one of `MALE`, `FEMALE`, `OTHER`, `UNSPECIFIED`
 (default).
+
+## 4a. `GET /api/doctors/`
+
+Lists doctors ordered by name. Run `python manage.py seed_dummy_data` to
+create the demo doctors alongside the demo patients.
+
+**Response `200`**
+```json
+[
+  {
+    "id": 1, "doctor_id": "DOC001", "name": "Anjali Krishnan",
+    "specialty": "Physical Medicine and Rehabilitation",
+    "phone": "+91 98470 10101", "email": "anjali.krishnan@example.com",
+    "is_active": true,
+    "created_at": "2026-10-26T08:00:00Z", "updated_at": "2026-10-26T08:00:00Z"
+  }
+]
+```
 
 **`POST` request** — only `patient_id` and `name` are required:
 ```json

@@ -2,6 +2,23 @@ from django.db import models
 from django.utils import timezone
 
 
+class Doctor(models.Model):
+    doctor_id = models.CharField(max_length=32, unique=True)
+    name = models.CharField(max_length=255)
+    specialty = models.CharField(max_length=128, blank=True)
+    phone = models.CharField(max_length=32, blank=True)
+    email = models.EmailField(blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return f"{self.doctor_id} ({self.name})"
+
+
 class Patient(models.Model):
     """Patient record — structured data in PostgreSQL. See README_WebRTC.md #18.
 
@@ -20,7 +37,16 @@ class Patient(models.Model):
 
     patient_id = models.CharField(max_length=32, unique=True)
     name = models.CharField(max_length=255)
+    doctor = models.ForeignKey(
+        Doctor,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="patients",
+    )
     date_of_birth = models.DateField(null=True, blank=True)
+    height_cm = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    weight_kg = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
     gender = models.CharField(max_length=16, choices=Gender.choices, default=Gender.UNSPECIFIED)
     phone = models.CharField(max_length=32, blank=True)
     email = models.EmailField(blank=True)

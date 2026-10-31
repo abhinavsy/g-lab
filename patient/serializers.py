@@ -3,11 +3,36 @@ from rest_framework import serializers
 from streaming.serializers import AlertEventSerializer, RecordingSerializer, SessionSerializer
 from telemetry.models import AnalysisEvent
 
-from .models import Patient, SessionReport
+from .models import Doctor, Patient, SessionReport
+
+
+class DoctorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Doctor
+        fields = [
+            "id",
+            "doctor_id",
+            "name",
+            "specialty",
+            "phone",
+            "email",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields
 
 
 class PatientSerializer(serializers.ModelSerializer):
     age = serializers.IntegerField(read_only=True)
+    doctor_id = serializers.SlugRelatedField(
+        slug_field="doctor_id",
+        source="doctor",
+        queryset=Doctor.objects.all(),
+        allow_null=True,
+        required=False,
+    )
+    doctor_name = serializers.CharField(source="doctor.name", read_only=True, allow_null=True)
     # Annotated in PatientViewSet.get_queryset.
     session_count = serializers.IntegerField(read_only=True)
     last_session_at = serializers.DateTimeField(read_only=True)
@@ -18,8 +43,12 @@ class PatientSerializer(serializers.ModelSerializer):
             "id",
             "patient_id",
             "name",
+            "doctor_id",
+            "doctor_name",
             "date_of_birth",
             "age",
+            "height_cm",
+            "weight_kg",
             "gender",
             "phone",
             "email",

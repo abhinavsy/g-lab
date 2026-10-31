@@ -1,6 +1,13 @@
 from django.contrib import admin
 
-from .models import Patient, SessionReport
+from .models import Doctor, Patient, SessionReport
+
+
+@admin.register(Doctor)
+class DoctorAdmin(admin.ModelAdmin):
+    list_display = ("doctor_id", "name", "specialty", "phone", "email", "is_active")
+    list_filter = ("specialty", "is_active")
+    search_fields = ("doctor_id", "name", "specialty", "email", "phone")
 
 
 @admin.register(Patient)

@@ -26,7 +26,6 @@ role, so there's no echo to filter either.
 """
 
 import logging
-
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from rest_framework.exceptions import ValidationError as DRFValidationError
@@ -236,3 +235,14 @@ class FlutterConsumer(GetSessionMixin, AsyncJsonWebsocketConsumer):
             content.get("speed"),
             content.get("spasm_detected"),
         )
+
+
+
+
+# docker exec g-lab-backend-1 python manage.py shell -c "
+# from django.contrib.auth import get_user_model
+# U=get_user_model()
+# u,created=U.objects.get_or_create(username='lekshmi')
+# u.is_staff=True; u.is_superuser=True; u.is_active=True
+# u.set_password('1234'); u.save()
+# print('created' if created else 'updated', u.username, u.is_superuser)"

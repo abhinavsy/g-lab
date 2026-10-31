@@ -1,7 +1,16 @@
-from django.db.models import Avg, Count, IntegerField, Max, OuterRef, ProtectedError, Q, Subquery
+from django.db.models import (
+    Avg,
+    Count,
+    IntegerField,
+    Max,
+    OuterRef,
+    ProtectedError,
+    Q,
+    Subquery,
+)
 from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404
-from rest_framework import status, viewsets
+from rest_framework import generics, status, viewsets
 from rest_framework.views import APIView
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -11,8 +20,9 @@ from streaming.models import Session
 from telemetry.models import AnalysisEvent
 
 from . import services
-from .models import Patient, SessionReport
+from .models import Doctor, Patient, SessionReport
 from .serializers import (
+    DoctorSerializer,
     PatientSerializer,
     SessionHistoryDetailSerializer,
     SessionHistorySerializer,
@@ -38,7 +48,9 @@ def annotate_session_summary(sessions):
         alert_count=Count("alerts", distinct=True),
         recording_count=Count("recordings", distinct=True),
         sample_count=Coalesce(_sample_stat(Count("id"), IntegerField()), 0),
-        spasm_count=Coalesce(_sample_stat(Count("id", filter=Q(spasm_detected=True)), IntegerField()), 0),
+        spasm_count=Coalesce(
+            _sample_stat(Count("id", filter=Q(spasm_detected=True)), IntegerField()), 0
+        ),
         avg_speed=_sample_stat(Avg("speed")),
         max_speed=_sample_stat(Max("speed")),
     )
@@ -49,7 +61,7 @@ class PatientViewSet(viewsets.ModelViewSet):
     lookup_field = "patient_id"
 
     def get_queryset(self):
-        return Patient.objects.annotate(
+        return Patient.objects.select_related("doctor").annotate(
             session_count=Count("sessions"),
             last_session_at=Max("sessions__created_at"),
         ).order_by("-created_at")
@@ -60,7 +72,9 @@ class PatientViewSet(viewsets.ModelViewSet):
             return super().destroy(request, *args, **kwargs)
         except ProtectedError:
             return Response(
-                {"detail": "Patient has sessions and can't be deleted; set is_active=false instead."},
+                {
+                    "detail": "Patient has sessions and can't be deleted; set is_active=false instead."
+                },
                 status=status.HTTP_409_CONFLICT,
             )
 
@@ -73,11 +87,15 @@ class PatientViewSet(viewsets.ModelViewSet):
         and alert/recording counts.
         """
         patient = self.get_object()
-        sessions = annotate_session_summary(Session.objects.filter(patient=patient).select_related("patient"))
+        sessions = annotate_session_summary(
+            Session.objects.filter(patient=patient).select_related("patient")
+        )
         status_filter = request.query_params.get("status")
         if status_filter:
             if status_filter not in Session.Status.values:
-                raise ValidationError({"status": f"Must be one of {Session.Status.values}."})
+                raise ValidationError(
+                    {"status": f"Must be one of {Session.Status.values}."}
+                )
             sessions = sessions.filter(status=status_filter)
         # Explicit: Meta.ordering is ignored on aggregate (GROUP BY) queries.
         sessions = sessions.order_by("-created_at")
@@ -99,9 +117,18 @@ class PatientViewSet(viewsets.ModelViewSet):
             .select_related("report")
             .prefetch_related("analysis_events", "alerts", "recordings")
         )
-        lookup = {"session_number": int(session_id)} if session_id.isdigit() else {"session_id": session_id}
+        lookup = (
+            {"session_number": int(session_id)}
+            if session_id.isdigit()
+            else {"session_id": session_id}
+        )
         session = get_object_or_404(sessions, **lookup)
         return Response(SessionHistoryDetailSerializer(session).data)
+
+
+class DoctorListView(generics.ListAPIView):
+    queryset = Doctor.objects.all()
+    serializer_class = DoctorSerializer
 
 
 class SessionReportView(APIView):
@@ -116,12 +143,17 @@ class SessionReportView(APIView):
     """
 
     def get(self, request, session_id):
-        report = get_object_or_404(SessionReport.objects.select_related("session", "patient"), session__session_id=session_id)
+        report = get_object_or_404(
+            SessionReport.objects.select_related("session", "patient"),
+            session__session_id=session_id,
+        )
         return Response(SessionReportSerializer(report).data)
 
     def put(self, request, session_id):
         session = get_object_or_404(Session, session_id=session_id)
-        report, created = services.save_session_report(session=session, data=request.data)
+        report, created = services.save_session_report(
+            session=session, data=request.data
+        )
         return Response(
             SessionReportSerializer(report).data,
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,

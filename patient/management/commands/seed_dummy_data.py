@@ -23,15 +23,39 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
-from patient.models import Patient, SessionReport
+from patient.models import Doctor, Patient, SessionReport
 from streaming.models import AlertEvent, Session
 from telemetry.models import AnalysisEvent
 
 PREFIX = "DEMO"
+DOCTOR_PREFIX = "DOC"
+
+DOCTORS = [
+    {
+        "name": "Anjali Krishnan",
+        "specialty": "Physical Medicine and Rehabilitation",
+        "phone": "+91 98470 10101",
+        "email": "anjali.krishnan@example.com",
+    },
+    {
+        "name": "Rohan Mathew",
+        "specialty": "Orthopedics",
+        "phone": "+91 98470 10102",
+        "email": "rohan.mathew@example.com",
+    },
+    {
+        "name": "Sana Fathima",
+        "specialty": "Neurology",
+        "phone": "+91 98470 10103",
+        "email": "sana.fathima@example.com",
+    },
+]
 
 PATIENTS = [
     {
         "name": "Arjun Menon",
+        "height_cm": 172.00,
+        "weight_kg": 74.50,
         "date_of_birth": date(1958, 3, 14),
         "gender": Patient.Gender.MALE,
         "phone": "+91 98470 11201",
@@ -44,6 +68,8 @@ PATIENTS = [
     },
     {
         "name": "Priya Nair",
+        "height_cm": 160.00,
+        "weight_kg": 61.20,
         "date_of_birth": date(1972, 7, 2),
         "gender": Patient.Gender.FEMALE,
         "phone": "+91 94460 22301",
@@ -55,6 +81,8 @@ PATIENTS = [
     },
     {
         "name": "Thomas George",
+        "height_cm": 180.00,
+        "weight_kg": 82.00,
         "date_of_birth": date(1990, 11, 23),
         "gender": Patient.Gender.MALE,
         "phone": "+91 90480 33401",
@@ -65,6 +93,8 @@ PATIENTS = [
     },
     {
         "name": "Fathima Rasheed",
+        "height_cm": 148.00,
+        "weight_kg": 42.00,
         "date_of_birth": date(2012, 5, 9),
         "gender": Patient.Gender.FEMALE,
         "phone": "+91 97450 44501",
@@ -76,6 +106,8 @@ PATIENTS = [
     },
     {
         "name": "Lakshmi Varma",
+        "height_cm": 155.00,
+        "weight_kg": 68.30,
         "date_of_birth": date(1965, 1, 30),
         "gender": Patient.Gender.FEMALE,
         "phone": "+91 99610 55601",
@@ -113,12 +145,22 @@ class Command(BaseCommand):
             return
 
         rng = random.Random(options["seed"])
+        doctors = []
+        for index, data in enumerate(DOCTORS, start=1):
+            doctor = Doctor.objects.create(doctor_id=f"{DOCTOR_PREFIX}{index:03d}", **data)
+            doctors.append(doctor)
+            self.stdout.write(f"{doctor.doctor_id} {doctor.name}")
+
         user = get_user_model().objects.filter(is_superuser=True).order_by("id").first()
         now = timezone.now()
 
         session_total = 0
         for i, data in enumerate(PATIENTS, start=1):
-            patient = Patient.objects.create(patient_id=f"{PREFIX}{i:03d}", **data)
+            patient = Patient.objects.create(
+                patient_id=f"{PREFIX}{i:03d}",
+                doctor=doctors[(i - 1) % len(doctors)],
+                **data,
+            )
             n_sessions = rng.randint(3, 6)
             # Oldest first (so Session 1 is the earliest), 5-10 days apart.
             gaps = [rng.randint(5, 10) for _ in range(n_sessions)]
@@ -131,6 +173,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f"created {len(PATIENTS)} patients, {session_total} sessions"))
 
     def _clear(self):
+        Doctor.objects.filter(doctor_id__startswith=DOCTOR_PREFIX).delete()
         patients = Patient.objects.filter(patient_id__startswith=PREFIX)
         count = patients.count()
         # Session.patient is PROTECT, so sessions (and their alerts/samples/

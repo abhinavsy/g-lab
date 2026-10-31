@@ -1,4 +1,4 @@
-# Django backend (streaming/, telemetry/, dashboard/) — the REST/WebSocket
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                # Django backend (streaming/, telemetry/, dashboard/) — the REST/WebSocket
 # control plane. Not the Jetson mock (see jetson_mock/Dockerfile — separate
 # image, separate compose file) and not the Flutter app.
 #
